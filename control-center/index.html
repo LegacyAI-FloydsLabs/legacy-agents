@@ -2597,9 +2597,10 @@
               class="btn btn-sm"
               id="gov-refresh-btn"
               title="Re-scan drives now"
-            >
-              ↻ Refresh
+            >↻ Refresh
             </button>
+            <button class="btn btn-sm" id="gov-bootstrap-all-btn" title="Bootstrap all governed projects">▶ Bootstrap All</button>
+            <button class="btn btn-sm" id="gov-finisher-all-btn" title="Run finisher on all governed projects">✓ Finish All</button>
             <span class="spacer" style="flex: 1"></span>
             <span
               style="font-size: 0.7rem; opacity: 0.55"
@@ -2872,6 +2873,26 @@
             <h2><span class="hicon">⚡</span> Top Recovery Candidates</h2>
             <div id="health-candidates"></div>
           </section>
+          <section class="health-section">
+            <h2><span class="hicon">⏱</span> Automation Jobs</h2>
+            <div id="automation-jobs-table-wrap" style="overflow-x:auto">
+              <table class="health-table" id="automation-jobs-table">
+                <thead>
+                  <tr>
+                    <th>Agent</th>
+                    <th>Type</th>
+                    <th>Schedule</th>
+                    <th>Status</th>
+                    <th>Runs</th>
+                    <th>Next Run</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+              <p id="automation-jobs-empty" style="opacity:0.5;text-align:center;padding:12px">No automation jobs configured</p>
+            </div>
+          </section>
         </div>
       </div>
 
@@ -3029,13 +3050,40 @@
       <span class="spacer" style="flex: 1"></span>
       <span id="agent-count">0 agents</span>
       <span id="running-count"></span>
-      <span style="margin-left: 12px; opacity: 0.5"
+      <span id="autoclean-indicator" style="margin-left:8px;font-size:0.7rem;opacity:0.6"></span>
+      <button class="btn-icon" id="autoclean-trigger-btn" title="Run cleanup now" style="display:none;font-size:0.7rem">🧹</button>
+      <span style="margin-left: 12px; opacity: 0.5">Ctrl+K: commands · Ctrl+N: add · Ctrl+B: sidebar · Ctrl+F: search</span>
         >Ctrl+K: commands · Ctrl+N: add · Ctrl+B: sidebar · Ctrl+F: search</span
       >
     </div>
 
     <!-- Toast container -->
     <div class="toast-container" id="toast-container"></div>
+
+    <!-- Collab Room Panel -->
+    <div id="collab-panel" style="display:none;position:fixed;bottom:50px;right:12px;width:380px;max-height:300px;background:var(--bg-elevated);border:1px solid var(--border);border-radius:var(--glass-radius);box-shadow:var(--glass-shadow);z-index:1000;overflow:hidden">
+      <div style="padding:8px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px">
+        <strong style="font-size:0.85rem">Collab Room</strong>
+        <input id="collab-room-input" placeholder="Room name…" style="flex:1;background:var(--bg-input);border:1px solid var(--border);color:var(--text-bright);padding:4px 8px;border-radius:4px;font-size:0.8rem">
+        <button class="btn btn-sm" id="collab-join-btn">Join</button>
+        <button class="btn btn-sm" onclick="document.getElementById('collab-panel').style.display='none'">✕</button>
+      </div>
+      <div id="collab-messages" style="height:220px;overflow-y:auto;padding:8px;font-size:0.78rem;font-family:monospace"></div>
+      <div style="padding:8px;border-top:1px solid var(--border);display:flex;gap:6px">
+        <input id="collab-msg-input" placeholder="Type a message…" style="flex:1;background:var(--bg-input);border:1px solid var(--border);color:var(--text-bright);padding:4px 8px;border-radius:4px;font-size:0.8rem">
+        <button class="btn btn-sm" id="collab-send-btn">Send</button>
+      </div>
+    </div>
+
+    <!-- Event Stream Panel -->
+    <div id="event-stream-panel" style="display:none;position:fixed;bottom:50px;right:12px;width:380px;max-height:300px;background:var(--bg-elevated);border:1px solid var(--border);border-radius:var(--glass-radius);box-shadow:var(--glass-shadow);z-index:1000;overflow:hidden">
+      <div style="padding:8px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px">
+        <strong style="font-size:0.85rem">Agent Events</strong>
+        <span style="flex:1"></span>
+        <button class="btn btn-sm" onclick="document.getElementById('event-stream-panel').style.display='none'">✕</button>
+      </div>
+      <div id="event-stream-log" style="height:250px;overflow-y:auto;padding:8px;font-size:0.78rem;font-family:monospace;color:var(--text-muted)"></div>
+    </div>
 
     <!-- Command Palette -->
     <div class="cmd-palette-overlay" id="cmd-palette-overlay">
@@ -3615,7 +3663,104 @@
                 createFrame(agent);
               }
             });
+        }
+
+        // ---- Auto-Clean Status ----
+        async function pollAutoClean() {
+          try {
+            const r = await fetch("/api/autoclean/status");
+            if (!r.ok) return;
+            const d = await r.json();
+            const el = document.getElementById("autoclean-indicator");
+            const btn = document.getElementById("autoclean-trigger-btn");
+            if (el) {
+              el.textContent = `🧹 ${d.stale_count} stale · ${d.enabled ? "on" : "off"}`;
+            }
+            if (btn) btn.style.display = d.enabled ? "" : "none";
           } catch {}
+        }
+        document.getElementById("autoclean-trigger-btn")?.addEventListener("click", async () => {
+          toast("Running auto-cleanup…");
+          await fetch("/api/autoclean", { method: "POST" });
+          await pollAutoClean();
+          toast("Auto-cleanup complete", "success");
+        });
+        setInterval(pollAutoClean, 30000);
+        pollAutoClean();
+
+        // ---- Collab Room ----
+        let collabWs = null;
+        let collabRoom = null;
+        function openCollabPanel() {
+          document.getElementById('collab-panel').style.display = '';
+        }
+        function joinCollabRoom() {
+          const room = document.getElementById('collab-room-input').value.trim();
+          if (!room) return toast('Enter a room name', 'error');
+          if (collabWs) { try { collabWs.close(); } catch {} }
+          collabRoom = room;
+          const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+          collabWs = new WebSocket(`${proto}//${location.host}/ws/collab?room=${encodeURIComponent(room)}`);
+          collabWs.onmessage = (e) => {
+            const msgs = document.getElementById('collab-messages');
+            const div = document.createElement('div');
+            div.style.cssText = 'margin-bottom:4px';
+            try { const d = JSON.parse(e.data); div.textContent = d.text || e.data; } catch { div.textContent = e.data; }
+            msgs.appendChild(div);
+            msgs.scrollTop = msgs.scrollHeight;
+          };
+          collabWs.onclose = () => {
+            const msgs = document.getElementById('collab-messages');
+            const div = document.createElement('div');
+            div.textContent = 'Disconnected'; div.style.cssText = 'color:var(--text-dim);font-style:italic';
+            msgs.appendChild(div);
+          };
+          document.getElementById('collab-join-btn').textContent = 'Joined';
+          document.getElementById('collab-join-btn').disabled = true;
+          toast(`Joined room: ${room}`, 'success');
+        }
+        document.getElementById('collab-join-btn').addEventListener('click', joinCollabRoom);
+        document.getElementById('collab-msg-input').addEventListener('keydown', (e) => {
+          if (e.key === 'Enter' && collabWs && collabWs.readyState === WebSocket.OPEN) {
+            collabWs.send(JSON.stringify({ text: e.target.value }));
+            e.target.value = '';
+          }
+        });
+        document.getElementById('collab-send-btn').addEventListener('click', () => {
+          const input = document.getElementById('collab-msg-input');
+          if (collabWs && collabWs.readyState === WebSocket.OPEN) {
+            collabWs.send(JSON.stringify({ text: input.value }));
+            input.value = '';
+          }
+        });
+
+        // ---- Event Stream ----
+        let eventsWs = null;
+        function openEventStream() {
+          const panel = document.getElementById('event-stream-panel');
+          panel.style.display = '';
+          if (eventsWs) return;
+          const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+          eventsWs = new WebSocket(`${proto}//${location.host}/ws/events`);
+          eventsWs.onmessage = (e) => {
+            const log = document.getElementById('event-stream-log');
+            const div = document.createElement('div');
+            div.style.cssText = 'margin-bottom:2px';
+            try {
+              const d = JSON.parse(e.data);
+              const icon = d.type === 'start' ? '🟢' : d.type === 'stop' ? '🔴' : d.type === 'restart' ? '🔄' : '⚡';
+              div.textContent = `${icon} ${d.type}: ${d.agent_id || '?'} ${d.name || ''}`;
+            } catch { div.textContent = e.data; }
+            log.appendChild(div);
+            log.scrollTop = log.scrollHeight;
+          };
+          eventsWs.onclose = () => {
+            const log = document.getElementById('event-stream-log');
+            const div = document.createElement('div');
+            div.textContent = 'Disconnected'; div.style.cssText = 'color:var(--text-dim);font-style:italic';
+            log.appendChild(div);
+            eventsWs = null;
+          };
         }
 
         // ---- Quick presets ----
@@ -4573,11 +4718,13 @@
                 shortcut: "",
                 cat: "Bulk",
                 action: async () => {
-                  toast("Restarting all agents…");
-                  for (const [id] of agents) await restartAgent(id);
-                  toast("All agents restarted", "success");
+                  toast("Restarting all running agents…");
+                  const r = await fetch("/api/bulk/restart", { method: "POST" });
+                  const data = await r.json();
+                  await reloadAgents();
+                  toast(`Restarted ${data.restarted?.length || 0} agents`, "success");
                 },
-                confirm: false,
+                confirm: false
               },
               {
                 label: "Stop All Agents",
@@ -4621,6 +4768,20 @@
                 confirm: false,
               },
               {
+                label: "Run Auto-Cleanup Now",
+                shortcut: "",
+                cat: "System",
+                action: async () => {
+                  toast("Running auto-cleanup…");
+                  await fetch("/api/autoclean", { method: "POST" });
+                  await pollAutoClean();
+                  toast("Auto-cleanup done", "success");
+                },
+                confirm: false,
+              },
+              {
+              },
+              {
                 label: "Toggle Multi-Select",
                 cat: "Agent",
                 action: () =>
@@ -4633,6 +4794,20 @@
                 cat: "Agent",
                 action: () =>
                   document.getElementById("manage-tags-btn").click(),
+                confirm: false,
+              },
+              {
+                label: "Open Collab Room",
+                shortcut: "",
+                cat: "Collab",
+                action: () => openCollabPanel(),
+                confirm: false,
+              },
+              {
+                label: "Event Stream",
+                shortcut: "",
+                cat: "Monitor",
+                action: () => openEventStream(),
                 confirm: false,
               },
               {
@@ -5335,6 +5510,7 @@
                         <span style="flex:1"></span>
                         <button class="btn btn-sm" onclick="dispatchBootstrap('${p.name}')">▶ Dispatch Bootstrap</button>
                         <button class="btn btn-sm" onclick="dispatchFinisher('${p.name}')">▶ Dispatch Finisher</button>
+                        <button class="btn btn-sm" onclick="openProjectTerminal('${p.name}', '${p.path}')">⌨ Terminal</button>
                     </div>
                 </div>`;
         }
@@ -5395,6 +5571,30 @@
             btn.disabled = false;
             btn.textContent = "▶ Dispatch Finisher";
           }, 3000);
+        }
+        async function openProjectTerminal(projectName, projectPath) {
+          try {
+            const r = await fetch("/api/sidepanel/spawn", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                directory: projectPath,
+                label: "Terminal · " + projectName,
+                name_prefix: "proj-" + projectName.replace(/[^a-z0-9]/gi, "").toLowerCase().slice(0, 20),
+                extra_tags: ["project"],
+              }),
+            });
+            if (!r.ok) throw new Error("HTTP " + r.status);
+            const d = await r.json();
+            toast(`Opened terminal for ${projectName}`, "success");
+            const dtTab = document.getElementById("cb-tab-dualterm");
+            if (dtTab) dtTab.click();
+            setTimeout(() => {
+              connectWS(d.agent_id);
+            }, 500);
+          } catch (e) {
+            toast(`Terminal error: ${e.message}`, "error");
+          }
         }
         function applyFilters() {
           const q = $("gov-search").value.trim().toLowerCase();
@@ -5466,6 +5666,36 @@
         $("gov-search").addEventListener("input", renderGrid);
         $("gov-filter-status").addEventListener("change", renderGrid);
         $("gov-refresh-btn").addEventListener("click", refreshGovernance);
+        $("gov-bootstrap-all-btn").addEventListener("click", async () => {
+          const btn = $("gov-bootstrap-all-btn");
+          btn.disabled = true;
+          btn.textContent = "⏳ Booting…";
+          let ok = 0, fail = 0;
+          for (const p of allProjects) {
+            try {
+              const r = await fetch(`/api/projects/${encodeURIComponent(p.name)}/bootstrap`, { method: "POST" });
+              const d = await r.json();
+              d.ok ? ok++ : fail++;
+            } catch { fail++; }
+          }
+          btn.textContent = `▶ Bootstrap All (${ok} ok, ${fail} fail)`;
+          setTimeout(() => { btn.disabled = false; btn.textContent = "▶ Bootstrap All"; }, 3000);
+        });
+        $("gov-finisher-all-btn").addEventListener("click", async () => {
+          const btn = $("gov-finisher-all-btn");
+          btn.disabled = true;
+          btn.textContent = "⏳ Finishing…";
+          let ok = 0, fail = 0;
+          for (const p of allProjects) {
+            try {
+              const r = await fetch(`/api/projects/${encodeURIComponent(p.name)}/finisher`, { method: "POST" });
+              const d = await r.json();
+              d.ok ? ok++ : fail++;
+            } catch { fail++; }
+          }
+          btn.textContent = `✓ Finish All (${ok} ok, ${fail} fail)`;
+          setTimeout(() => { btn.disabled = false; btn.textContent = "✓ Finish All"; }, 3000);
+        });
 
         // Tick the "last scan" label every 30s
         setInterval(renderLastScan, 30_000);
@@ -5630,6 +5860,74 @@
           $("health-scan-meta").textContent =
             `${ageStr} · ${fresh} · ${data.duration_seconds || 0}s`;
         }
+
+        // ---- Automation Jobs ----
+        async function renderAutomationJobs() {
+          try {
+            const r = await fetch("/api/automation/jobs");
+            if (!r.ok) return;
+            const jobs = await r.json();
+            const tbody = document.querySelector("#automation-jobs-table tbody");
+            const empty = document.getElementById("automation-jobs-empty");
+            if (!tbody) return;
+            if (!jobs || jobs.length === 0) {
+              tbody.innerHTML = "";
+              if (empty) empty.style.display = "";
+              return;
+            }
+            if (empty) empty.style.display = "none";
+            tbody.innerHTML = jobs.map(j => {
+              const typeLabel = j.type === "cron" ? "Cron" : j.type === "launchd_timer" ? "Timer" : j.type === "launchd_hook" ? "Hook" : j.type === "launchd_keepalive" ? "KeepAlive" : j.automation_type || j.type;
+              const statusBadge = j.status === "active" ? `<span style="color:var(--green)">● active</span>` : `<span style="color:var(--text-dim)">○ ${j.status || "inactive"}</span>`;
+              const nextStr = j.next_run ? new Date(j.next_run).toLocaleString() : "—";
+              return `<tr>
+                <td>${esc(j.agent_name || j.agent_id)}</td>
+                <td>${esc(typeLabel)}</td>
+                <td><code>${esc(j.schedule || "—")}</code></td>
+                <td>${statusBadge}</td>
+                <td>${j.run_count ?? 0}</td>
+                <td>${esc(nextStr)}</td>
+                <td><button class="btn btn-sm" onclick="triggerAutomation('${j.agent_id}')" title="Trigger now">▶</button>
+                    <button class="btn btn-sm" onclick="toggleAutomation('${j.agent_id}', ${j.status === 'active' ? 'true' : 'false'})" title="${j.status === 'active' ? 'Disable' : 'Enable'}">${j.status === 'active' ? "⏸" : "⏵"}</button>
+                    ${j.log_out ? `<button class="btn btn-sm" onclick="viewAutomationLogs('${j.agent_id}')" title="View logs">📜</button>` : ''}</td>
+              </tr>`;
+            }).join("");
+          } catch {}
+        }
+        async function triggerAutomation(agentId) {
+          toast(`Triggering ${agentId}…`);
+          try {
+            const r = await fetch(`/api/automation/${encodeURIComponent(agentId)}/trigger`, { method: "POST" });
+            if (!r.ok) throw new Error(`HTTP ${r.status}`);
+            const d = await r.json();
+            toast(`Triggered: PID ${d.pid ?? "unknown"}`, "success");
+          } catch (e) { toast(`Trigger failed: ${e.message}`, "error"); }
+          await renderAutomationJobs();
+        }
+        async function toggleAutomation(agentId, currentlyEnabled) {
+          const action = currentlyEnabled ? "disable" : "enable";
+          toast(`${currentlyEnabled ? "Disabling" : "Enabling"} automation for ${agentId}…`);
+          try {
+            const r = await fetch(`/api/automation/${encodeURIComponent(agentId)}/${action}`, { method: "POST" });
+            if (!r.ok) throw new Error(`HTTP ${r.status}`);
+            toast(`${currentlyEnabled ? "Disabled" : "Enabled"} ${agentId}`, "success");
+          } catch (e) { toast(`Toggle failed: ${e.message}`, "error"); }
+          await renderAutomationJobs();
+        }
+        async function viewAutomationLogs(agentId) {
+          try {
+            const r = await fetch(`/api/automation/${encodeURIComponent(agentId)}/logs`);
+            if (!r.ok) throw new Error(`HTTP ${r.status}`);
+            const d = await r.json();
+            const lines = [];
+            if (d.log_out) lines.push(`stdout: ${d.log_out}`);
+            if (d.log_err) lines.push(`stderr: ${d.log_err}`);
+            if (d.stdout) lines.push(d.stdout.slice(0, 2000));
+            if (d.stderr) lines.push(d.stderr.slice(0, 2000));
+            if (lines.length === 0) lines.push("No logs available");
+            toast(lines.join("\\n"), "info");
+          } catch (e) { toast(`Logs error: ${e.message}`, "error"); }
+        }
         async function refreshHealth(rescan = false) {
           const meta = $("health-scan-meta");
           if (meta) meta.textContent = rescan ? "scanning…" : "loading…";
@@ -5644,6 +5942,7 @@
           renderHealthMem(data.memory_hogs || []);
           renderHealthCandidates(data.disk_recovery_candidates || []);
           renderHealthMeta(data);
+          await renderAutomationJobs();
         }
         // Wire sortable headers
         document

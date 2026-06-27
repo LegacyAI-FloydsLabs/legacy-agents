@@ -1,7 +1,7 @@
 # Legacy_Agents — FLOYD.md
-**Version:** 1.5.0
+**Version:** 1.7.0
 **Initialized:** 2026-04-29T07:31:47-0400
-**Governance:** .supercache/ v1.5.0
+**Governance:** .supercache/ v1.7.0
 **Port:** {{PORT}} (claimed in port-registry.json)
 **Drive:** {{DRIVE}}
 **Path:** {{PROJECT_PATH}}

@@ -1,7 +1,7 @@
 # Legacy_Agents SSOT (Single Source of Truth)
 **Created:** 2026-04-29T07:31:47-0400
 **Last Updated:** 2026-04-29T08:06:46-0400
-**Governance:** .supercache/ v1.5.0
+**Governance:** .supercache/ v1.7.0
 
 > **Compliance Notice:** This file must match the structure at
 > `.supercache/templates/ssot-template.md`. This is the authoritative

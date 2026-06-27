@@ -1,7 +1,7 @@
 # ATerm — FLOYD.md
-**Version:** 0.1.0
+**Version:** 1.7.0
 **Initialized:** 2026-04-24
-**Governance:** .supercache/ v1.4.0
+**Governance:** .supercache/ v1.7.0
 **Port:** 9600 (claimed in port-registry.json)
 **Drive:** SanDisk1Tb
 **Path:** /Volumes/SanDisk1Tb/ATerm

@@ -1,8 +1,8 @@
 # Floyd's Unified Command Kernel — FLOYD.md
 
-**Version:** 1.1.0
+**Version:** 1.7.0
 **Initialized:** 2026-04-30
-**Governance:** .supercache/ v1.6.2
+**Governance:** .supercache/ v1.7.0
 **Canonical SSOT:** `SSOT/control-center_SSOT.md`
 **Port:** 10527
 **Path:** `/Volumes/Storage/Legacy Agents/control-center/`

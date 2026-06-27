@@ -1,7 +1,7 @@
 # mobile-web-IDE SSOT (Single Source of Truth)
 **Created:** 2026-04-24T22:42:04-0400
 **Last Updated:** 2026-04-24T22:42:04-0400
-**Governance:** .supercache/ v1.4.0
+**Governance:** .supercache/ v1.7.0
 
 > **Compliance Notice:** This file must match the structure at
 > `.supercache/templates/ssot-template.md`. This is the authoritative

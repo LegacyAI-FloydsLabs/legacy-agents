@@ -2,7 +2,7 @@
 
 **Created:** 2026-05-01T01:16:09-0400
 **Last Updated:** 2026-05-03T00:51:15-0400
-**Governance:** .supercache/ v1.6.2
+**Governance:** .supercache/ v1.7.0
 
 This is the active issue ledger for Dashboard. The architecture and beta-release work list live in `../SSOT/control-center_SSOT.md`.
 

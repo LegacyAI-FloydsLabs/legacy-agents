@@ -1,8 +1,8 @@
 # Floyd's Unified Command Kernel — CLAUDE.md
 
-**Version:** 1.0.0
+**Version:** 1.7.0
 **Initialized:** 2026-04-30
-**Governance:** .supercache/ v1.6.2
+**Governance:** .supercache/ v1.7.0
 **Canonical spec:** `FLOYD.md` and `SSOT/control-center_SSOT.md`
 
 ---

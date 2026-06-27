@@ -1,7 +1,7 @@
 # mobile-web-IDE — FLOYD.md
-**Version:** 1.3.0
+**Version:** 1.7.0
 **Initialized:** 2026-04-23T03:15:11-0400
-**Governance:** .supercache/ v1.3.0
+**Governance:** .supercache/ v1.7.0
 **Port:** {{PORT}} (claimed in port-registry.json)
 **Drive:** {{DRIVE}}
 **Path:** {{PROJECT_PATH}}

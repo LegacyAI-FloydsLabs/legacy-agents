@@ -1,7 +1,7 @@
 # Legacy Agents — CLAUDE.md
-**Version:** 1.5.0
+**Version:** 1.7.0
 **Initialized:** 2026-04-29T07:31:54-0400
-**Governance:** .supercache/ v1.5.0
+**Governance:** .supercache/ v1.7.0
 **Canonical spec:** `FLOYD.md` (read that first)
 **Runtime:** Claude Code (advisor + complex implementation)
 

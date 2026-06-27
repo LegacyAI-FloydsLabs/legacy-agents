@@ -1,6 +1,6 @@
 # mobile-web-IDE Issues Ledger
 **Created:** 2026-04-23T03:15:11-0400
-**Governance:** .supercache/ v1.3.0
+**Governance:** .supercache/ v1.7.0
 
 > **Compliance Notice:** This file must match the structure at
 > `.supercache/templates/issues-template.md`. This is the living help-desk

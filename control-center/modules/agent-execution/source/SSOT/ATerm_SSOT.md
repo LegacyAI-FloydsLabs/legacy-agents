@@ -2,7 +2,7 @@
 
 **Project:** ATerm
 **Last Updated:** 2026-04-26 13:19 EDT
-**Governance:** .supercache/ v1.4.1
+**Governance:** .supercache/ v1.7.0
 **Authority:** This document is the authoritative source for ATerm architecture and state facts.
 
 ---

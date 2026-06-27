@@ -30,12 +30,14 @@ categorize() {
   [ -f "$dir/README.md" ] && has_readme=1
   [ -f "$dir/package.json" ] && has_pkgjson=1
   [ -f "$dir/go.mod" ] && has_gomod=1
-  [ -f "$dir/pyproject.toml" ] || [ -f "$dir/requirements.txt" ] || [ -f "$dir/setup.py" ] && has_py=1
+  if [ -f "$dir/pyproject.toml" ] || [ -f "$dir/requirements.txt" ] || [ -f "$dir/setup.py" ]; then
+    has_py=1
+  fi
   [ -f "$dir/SSOT/repository_report.json" ] && report_json=$(cat "$dir/SSOT/repository_report.json" 2>/dev/null)
 
   if [ "$has_floyd" -eq 1 ]; then
-    floyd_ver=$(grep -m1 '^\*\*Version:\*\*' "$dir/FLOYD.md" 2>/dev/null | sed 's/.*Version:\*\* *//' | xargs)
-    floyd_gov=$(grep -m1 '^\*\*Governance:\*\*' "$dir/FLOYD.md" 2>/dev/null | sed 's/.*Governance:\*\* *//' | xargs)
+    floyd_ver=$(grep -m1 '^\*\*Version:\*\*' "$dir/FLOYD.md" 2>/dev/null | sed 's/.*Version:\*\* *//' | xargs || true)
+    floyd_gov=$(grep -m1 '^\*\*Governance:\*\*' "$dir/FLOYD.md" 2>/dev/null | sed 's/.*Governance:\*\* *//' | xargs || true)
   fi
 
   # Categorize
@@ -105,7 +107,9 @@ entry = {
 }
 # Embed report if available
 try:
-    report = json.loads(open('$dir/SSOT/repository_report.json').read()) if $has_ssot and '$report_json' != '' else {}
+    import os
+    report_path = os.path.join('''$dir''', 'SSOT', 'repository_report.json')
+    report = json.loads(open(report_path).read()) if $has_ssot and os.path.exists(report_path) else {}
     entry['report'] = report
 except:
     entry['report'] = {}
@@ -130,7 +134,7 @@ except:
     pass
 
 print(json.dumps(entry))
-" 2>/dev/null)
+" 2>/dev/null || true)
 
   if [ -n "$entry" ]; then
     if $first; then first=false; else echo ',' >> "$TMPFILE"; fi
